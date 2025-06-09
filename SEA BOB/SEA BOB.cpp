@@ -84,6 +84,9 @@ int score = 0;
 int mins = 0;
 int secs = 180;
 
+int jellies_saved = 0;
+int jellies_lost = 0;
+
 //////////////////////////////////////////////////
 
 ID2D1Factory* iFactory{ nullptr };
@@ -138,9 +141,9 @@ ID2D1Bitmap* bmpEvil8R[16]{ nullptr };
 dll::RANDIt Randerer{};
 
 dll::GameObject Field{ nullptr };
-
-
-
+dll::GameCreature Bob{ nullptr };
+std::vector<dll::GameCreature>vJellies;
+std::vector<dll::GameCreature>vEvils;
 
 ///////////////////////////////////////////////////////////
 
@@ -234,17 +237,27 @@ void InitGame()
     score = 0;
     level = 1;
 
-    mins = 0;
-    secs = 180 + level * 10;
-
     ////////////////////////////////////
+
+    jellies_saved = 0;
+    int jellies_lost = 0;
+
+    mins = 0;
+    secs = 180 - level * 5;
 
     if (Field)Field->ObjRelease();
     Field = dll::CreateObject(types::field, 0, 50.0f);
 
+    if (Bob)Bob->Release();
+    Bob = dll::CreateCreature(types::hero, (float)(Randerer(10, (int)(scr_width - 80.0f))), ground - 80.0f, 0, 0);
 
+    if (!vJellies.empty())for (int i = 0; i < vJellies.size(); ++i) vJellies[i]->Release();
+    vJellies.clear();
 
+    if (!vEvils.empty())for (int i = 0; i < vEvils.size(); ++i) vEvils[i]->Release();
+    vEvils.clear();
 
+    ///////////////////////////////////
 
 }
 
@@ -470,6 +483,31 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPar
                     break;
                 }
             }
+        }
+        break;
+
+    case WM_KEYDOWN:
+        switch (wParam)
+        {
+        case VK_LEFT:
+            Bob->dir = dirs::left;
+            Bob->Move((float)(level));
+            break;
+
+        case VK_RIGHT:
+            Bob->dir = dirs::right;
+            Bob->Move((float)(level));
+            break;
+
+        case VK_UP:
+            Bob->dir = dirs::up;
+            Bob->Move((float)(level));
+            break;
+
+        case VK_DOWN:
+            Bob->dir = dirs::down;
+            Bob->Move((float)(level));
+            break;
         }
         break;
 
@@ -963,13 +1001,13 @@ void CreateResources()
         }
     }
 
-    wchar_t intro_text[45]{ L"СПОНДЖ БОБ - СПАСИТЕЛ !\n\n       dev.Daniel !" };
-    wchar_t show_txt[45] = L"\0";
+    wchar_t intro_text[46]{ L"СПОНДЖ БОБ - СПАСИТЕЛ !\n\n       dev. Daniel !" };
+    wchar_t show_txt[46] = L"\0";
     int txt_marker = 0;
     
     int intro_frame = 0;
 
-    while (txt_marker < 45)
+    while (txt_marker < 46)
     {
         if (Draw && bigFormat && txtBrush)
         {
@@ -978,16 +1016,14 @@ void CreateResources()
             ++intro_frame;
             if (intro_frame > 23)intro_frame = 0;
             show_txt[txt_marker] = intro_text[txt_marker];
+            if (show_txt[txt_marker] != L' ' && show_txt[txt_marker] != L'\n')
+                mciSendString(L"play .\\res\\snd\\click.wav", NULL, NULL, NULL);
             ++txt_marker;
             Draw->DrawTextW(show_txt, txt_marker, bigFormat, D2D1::RectF(10.0f, 200.0f, scr_width, scr_height), txtBrush);
             Draw->EndDraw();
-
-            if (show_txt[txt_marker] != ' ' && show_txt[txt_marker] != '\n')
-                mciSendString(L"play .\\res\\snd\\click.wav", NULL, NULL, NULL);
-            Sleep(50);
+            Sleep(40);
         }
-    }
-
+    }    
     PlaySound(L".\\res\\snd\\intro.wav", NULL, SND_SYNC);
 }
 
@@ -1037,15 +1073,79 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
         /////////////////////////////////////////////
 
+        if (vJellies.size() <= level + 3 && Randerer(0, 200) == 66)
+        {
+            float sx = (float)(Randerer(20, (int)(scr_width)));
+            float sy = 0;
+            float ex = 0;
+            float ey = 0;
 
+            switch (Randerer(0, 1))
+            {
+            case 0:
+                sy = sky;
+                break;
 
+            case 1:
+                sy = ground;
+                break;
+            }
 
+            if (sx < scr_width / 2)ex = scr_width - (float)(Randerer(0, 300));
+            else if (sx > scr_width / 2)ex = (float)(Randerer(0, 300));
+            else ex = sx;
 
+            if (sy < scr_height / 2)ey = ground;
+            else if (sy > scr_height / 2)ey = sky;
+            else ey = sy;
 
+            vJellies.push_back(dll::CreateCreature(types::jelly, sx, sy, ex, ey));
+        }
+        
+        if (!vJellies.empty())
+        {
+            for (std::vector<dll::GameCreature>::iterator jel = vJellies.begin(); jel < vJellies.end(); ++jel)
+            {
+                if (!(*jel)->Move((float)(level)))
+                {
+                    (*jel)->Release();
+                    vJellies.erase(jel);
+                    break;
+                }
+            }
+        }
 
+        /////////////////////////////////////////////
 
+        if (vEvils.size() <= level + 5 && Randerer(0, 300) == 66)
+        {
+            float sx = (float)(Randerer(20, (int)(scr_width)));
+            float sy = (float)(Randerer((int)(sky), (int)(ground-100.0f)));
+            float ex = 0;
+            float ey = 0;
 
+            if (sx < scr_width / 2)ex = scr_width - (float)(Randerer(0, 300));
+            else if (sx > scr_width / 2)ex = (float)(Randerer(0, 300));
+            else ex = sx;
 
+            if (sy < scr_height / 2)ey = ground - 100.0f;
+            else if (sy > scr_height / 2)ey = sky;
+            else ey = sy;
+
+            vEvils.push_back(dll::CreateCreature(static_cast<types>(Randerer(0, 7)), sx, sy, ex, ey));
+        }
+
+        if (!vEvils.empty() && Bob)
+        {
+            dll::PACK<FPOINT> Mesh(1 + vJellies.size());
+            Mesh.push_back(Bob->center);
+            
+            if (!vJellies.empty())
+               for (int i = 0; i < vJellies.size(); ++i)Mesh.push_back(vJellies[i]->center);
+
+            for (std::vector<dll::GameCreature>::iterator ev = vEvils.begin(); ev < vEvils.end(); ++ev)
+                (*ev)->EvilAI(Mesh, (float)(level));
+        }
 
         // DRAW THINGS ******************************
 
@@ -1072,8 +1172,77 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
         Draw->DrawBitmap(bmpField[Field->GetFrame()], D2D1::RectF(Field->start.x, Field->start.y, Field->end.x, Field->end.y));
 
+        if (Bob)
+        {
+            int frame = Bob->GetFrame();
+            Draw->DrawBitmap(bmpBob[frame], Resizer(bmpBob[frame], Bob->start.x, Bob->start.y));
+        }
+        if (!vJellies.empty())
+        {
+            for (int i = 0; i < vJellies.size(); ++i)
+            {
+                int frame = Bob->GetFrame();
+                Draw->DrawBitmap(bmpJelly[frame], Resizer(bmpJelly[frame], vJellies[i]->start.x, vJellies[i]->start.y));
+            }
+        }
+        if (!vEvils.empty())
+        {
+            for (int i = 0; i < vEvils.size(); ++i)
+            {
+                int frame = vEvils[i]->GetFrame();
 
+                switch (vEvils[i]->GetType())
+                {
+                case types::evil1:
+                    if (vEvils[i]->dir == dirs::left)Draw->DrawBitmap(bmpEvil1L[frame],
+                        Resizer(bmpEvil1L[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+                    else Draw->DrawBitmap(bmpEvil1R[frame], Resizer(bmpEvil1R[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+                    break;
 
+                case types::evil2:
+                    if (vEvils[i]->dir == dirs::left)Draw->DrawBitmap(bmpEvil2L[frame],
+                        Resizer(bmpEvil2L[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+                    else Draw->DrawBitmap(bmpEvil2R[frame], Resizer(bmpEvil2R[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+                    break;
+
+                case types::evil3:
+                    if (vEvils[i]->dir == dirs::left)Draw->DrawBitmap(bmpEvil3L[frame],
+                        Resizer(bmpEvil3L[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+                    else Draw->DrawBitmap(bmpEvil3R[frame], Resizer(bmpEvil3R[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+                    break;
+
+                case types::evil4:
+                    if (vEvils[i]->dir == dirs::left)Draw->DrawBitmap(bmpEvil4L[frame],
+                        Resizer(bmpEvil4L[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+                    else Draw->DrawBitmap(bmpEvil4R[frame], Resizer(bmpEvil4R[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+                    break;
+
+                case types::evil5:
+                    if (vEvils[i]->dir == dirs::left)Draw->DrawBitmap(bmpEvil5L[frame],
+                        Resizer(bmpEvil5L[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+                    else Draw->DrawBitmap(bmpEvil5R[frame], Resizer(bmpEvil5R[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+                    break;
+
+                case types::evil6:
+                    if (vEvils[i]->dir == dirs::left)Draw->DrawBitmap(bmpEvil6L[frame],
+                        Resizer(bmpEvil6L[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+                    else Draw->DrawBitmap(bmpEvil6R[frame], Resizer(bmpEvil6R[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+                    break;
+
+                case types::evil7:
+                    if (vEvils[i]->dir == dirs::left)Draw->DrawBitmap(bmpEvil7L[frame],
+                        Resizer(bmpEvil7L[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+                    else Draw->DrawBitmap(bmpEvil7R[frame], Resizer(bmpEvil7R[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+                    break;
+
+                case types::evil8:
+                    if (vEvils[i]->dir == dirs::left)Draw->DrawBitmap(bmpEvil8L[frame],
+                        Resizer(bmpEvil8L[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+                    else Draw->DrawBitmap(bmpEvil8R[frame], Resizer(bmpEvil8R[frame], vEvils[i]->start.x, vEvils[i]->start.y));
+                    break;
+                }
+            }
+        }
 
 
 

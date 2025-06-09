@@ -43,7 +43,7 @@ namespace dll
 		int operator()(int min, int max);
 	};
 
-	template<typename T> class SEADLL_API PACK
+	template<typename T> class PACK
 	{
 	private:
 		T* m_ptr{ nullptr };
@@ -57,7 +57,7 @@ namespace dll
 		{
 			if (m_ptr)is_valid = true;
 		}
-		PACK(size_t lenght) :max_size{ lenght }, m_ptr{ reinterpret_cast<T*>(calloc(max_size,sizeof(T))) }
+		PACK(size_t lenght) :max_size{ lenght }, m_ptr{ reinterpret_cast<T*>(calloc(lenght,sizeof(T))) }
 		{
 			if (m_ptr)is_valid = true;
 		}
@@ -104,7 +104,7 @@ namespace dll
 			if (!is_valid)return;
 			*m_ptr = element;
 		}
-		void insert(size_t index, T element)
+		void insert(size_t index, T& element)
 		{
 			if (!is_valid || index >= max_size)return;
 
@@ -154,11 +154,19 @@ namespace dll
 
 		T& operator[](size_t index)
 		{
-			T dummy{};
+			T* dummy{reinterpret_cast<T*>(malloc(sizeof(T)))};
 
-			if (!is_valid || index >= next_pos)return dummy;
+			if (!is_valid || index >= next_pos)
+			{
+				return *dummy;
+			}
 
 			return m_ptr[index];
+		}
+		void operator()(size_t index, T element)
+		{
+			if (index >= max_size)return;
+			else m_ptr[index] = element;
 		}
 	};
 
@@ -268,6 +276,8 @@ namespace dll
 	{
 		bool sorted = false;
 
+		if (pack.size() < 2)return;
+
 		while (!sorted)
 		{
 			sorted = true;
@@ -277,8 +287,8 @@ namespace dll
 				if (Distance(pack[i], target) > Distance(pack[i + 1], target))
 				{
 					FPOINT temp = pack[i];
-					pack[i] = pack[i + 1];
-					pack[i + 1] = temp;
+					pack(i, pack[i + 1]);
+					pack(i + 1, temp);
 					sorted = false;
 					break;
 				}
