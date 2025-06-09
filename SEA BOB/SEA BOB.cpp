@@ -79,6 +79,7 @@ bool b2Hglt = false;
 bool b3Hglt = false;
 
 bool level_skipped = false;
+bool defeat = false;
 
 int level = 1;
 int score = 0;
@@ -233,12 +234,82 @@ void ErrExit(int what)
     std::remove(tmp_file);
     exit(1);
 }
+BOOL CheckRecord()
+{
+    if (score < 1)return no_record;
 
+    int result = 0;
+    CheckFile(record_file, &result);
+    if (result == FILE_NOT_EXIST)
+    {
+        std::wofstream rec(record_file);
+        rec << score << std::endl;
+        for (int i = 0; i < 16; ++i)rec << static_cast<int>(current_player[i]) << std::endl;
+        rec.close();
+        return first_record;
+    }
+    else
+    {
+        std::wifstream check(record_file);
+        check >> result;
+        check.close();
+    }
+
+    if (result < score)
+    {
+        std::wofstream rec(record_file);
+        rec << score << std::endl;
+        for (int i = 0; i < 16; ++i)rec << static_cast<int>(current_player[i]) << std::endl;
+        rec.close();
+        return record;
+    }
+
+    return no_record;
+}
 void GameOver()
 {
     PlaySound(NULL, NULL, NULL);
     KillTimer(bHwnd, bTimer);
 
+    if (defeat)
+    {
+        Draw->BeginDraw();
+        Draw->DrawBitmap(bmpIntro[0], D2D1::RectF(0, 0, scr_width, scr_height));
+        Draw->DrawTextW(L"О, О, О ! ЗАГУБИ !", 18, bigFormat, D2D1::RectF(50.0f, 200.0f, scr_width, scr_height), hgltBrush);
+        Draw->EndDraw();
+        if (sound)PlaySound(L".\\res\\snd\\lost.wav", NULL, SND_SYNC);
+        else Sleep(2000);
+    }
+
+    switch (CheckRecord())
+    {
+    case no_record:
+        Draw->BeginDraw();
+        Draw->DrawBitmap(bmpIntro[0], D2D1::RectF(0, 0, scr_width, scr_height));
+        Draw->DrawTextW(L"ИЗПУСНА РЕКОРДА !", 18, bigFormat, D2D1::RectF(50.0f, 200.0f, scr_width, scr_height), hgltBrush);
+        Draw->EndDraw();
+        if (sound)PlaySound(L".\\res\\snd\\loose.wav", NULL, SND_SYNC);
+        else Sleep(2000);
+        break;
+
+    case first_record:
+        Draw->BeginDraw();
+        Draw->DrawBitmap(bmpIntro[0], D2D1::RectF(0, 0, scr_width, scr_height));
+        Draw->DrawTextW(L"ПЪРВИ РЕКОРД !", 15, bigFormat, D2D1::RectF(50.0f, 200.0f, scr_width, scr_height), hgltBrush);
+        Draw->EndDraw();
+        if (sound)PlaySound(L".\\res\\snd\\record.wav", NULL, SND_SYNC);
+        else Sleep(2000);
+        break;
+
+    case record:
+        Draw->BeginDraw();
+        Draw->DrawBitmap(bmpIntro[0], D2D1::RectF(0, 0, scr_width, scr_height));
+        Draw->DrawTextW(L"НОВ СВЕТОВЕН РЕКОРД !", 22, bigFormat, D2D1::RectF(50.0f, 200.0f, scr_width, scr_height), hgltBrush);
+        Draw->EndDraw();
+        if (sound)PlaySound(L".\\res\\snd\\record.wav", NULL, SND_SYNC);
+        else Sleep(2000);
+        break;
+    }
 
     bMsg.message = WM_QUIT;
     bMsg.wParam = 0;
@@ -250,6 +321,7 @@ void InitGame()
     score = 0;
     level = 1;
     level_skipped = false;
+    defeat = false;
 
     ////////////////////////////////////
 
@@ -1377,6 +1449,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                     if (sound)mciSendString(L"play .\\res\\snd\\defeat.wav", NULL, NULL, NULL);
                     Bob->Release();
                     Bob = nullptr;
+                    defeat = true;
                     break;
                 }
             }
@@ -1388,7 +1461,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
         }
 
         if (jellies_saved >= need_to_save)LevelUp();
-        if (jellies_lost >= 15 + level)GameOver();
+        if (jellies_lost >= 15 + level)
+        {
+            defeat = true;
+            GameOver();
+        }
 
         // DRAW THINGS ******************************
 
