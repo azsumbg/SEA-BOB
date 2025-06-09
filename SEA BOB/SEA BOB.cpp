@@ -298,12 +298,12 @@ void LevelUp()
 
         if (bonus > 0)
         {
-            wchar_t bonus_txt[20] = L"БОНУС: ";
-            wchar_t add[5] = L"\0";
-            int txt_size = 0;
-
             while (bonus > 0)
             {
+                wchar_t bonus_txt[20] = L"БОНУС: ";
+                wchar_t add[5] = L"\0";
+                int txt_size = 0;
+
                 bonus--;
                 score += level;
 
@@ -322,9 +322,10 @@ void LevelUp()
                 if (frame > 23)frame = 0;
                 Draw->DrawTextW(bonus_txt, txt_size, bigFormat, D2D1::RectF(300.0f, 200.0f, scr_width, scr_height), hgltBrush);
                 Draw->EndDraw();
-                if (sound)mciSendString(L"play .\\res\\click.wav", NULL, NULL, NULL);
-                Sleep(30);
+                if (sound)mciSendString(L"play .\\res\\snd\\click.wav", NULL, NULL, NULL);
+                Sleep(40);
             }
+            Sleep(3000);
         }
     }
 
@@ -1198,6 +1199,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
     CreateResources();
 
+    PlaySound(sound_file, NULL, SND_ASYNC | SND_LOOP);
+
     while (bMsg.message != WM_QUIT)
     {
         if ((bRet = PeekMessage(&bMsg, bHwnd, NULL, NULL, PM_REMOVE)) != 0)
@@ -1227,7 +1230,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
         /////////////////////////////////////////////
 
-        if (vJellies.size() <= level + 3 && Randerer(0, 200) == 66)
+        if (vJellies.size() <= level + 3 && Randerer(0, 150) == 66)
         {
             float sx = (float)(Randerer(20, (int)(scr_width)));
             float sy = 0;
@@ -1245,14 +1248,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                 break;
             }
 
-            if (sx < scr_width / 2)ex = scr_width - (float)(Randerer(0, 300));
-            else if (sx > scr_width / 2)ex = (float)(Randerer(0, 300));
+            if (sx < scr_width / 2)ex = scr_width - (float)(Randerer(0, 500));
+            else if (sx > scr_width / 2)ex = (float)(Randerer(20, 500));
             else ex = sx;
 
-            if (sy < scr_height / 2)ey = ground;
-            else if (sy > scr_height / 2)ey = sky;
-            else ey = sy;
-
+            if (sy == sky)ey = ground;
+            else ey = sky;
+            
             vJellies.push_back(dll::CreateCreature(types::jelly, sx, sy, ex, ey));
         }
         
@@ -1271,17 +1273,18 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
         /////////////////////////////////////////////
 
-        if (vEvils.size() <= level + 3 && Randerer(0, 300) == 66)
+        if (vEvils.size() <= level + 4 && Randerer(0, 300) == 66)
         {
-            float sx = (float)(Randerer(20, (int)(scr_width)));
+            float sx = 0;
             float sy = (float)(Randerer((int)(sky), (int)(ground-100.0f)));
             float ex = 0;
             float ey = 0;
 
-            if (sx < scr_width / 2)ex = scr_width - (float)(Randerer(0, 300));
-            else if (sx > scr_width / 2)ex = (float)(Randerer(0, 300));
-            else ex = sx;
+            if (Randerer(0, 1) == 1)sx = scr_width;
 
+            if (sx == 0)ex = scr_width - (float)(Randerer(0, 700));
+            else ex = (float)(Randerer(0, 700));
+            
             if (sy < scr_height / 2)ey = ground - 100.0f;
             else if (sy > scr_height / 2)ey = sky;
             else ey = sy;
