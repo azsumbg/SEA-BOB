@@ -109,6 +109,9 @@ IDWriteTextFormat* bigFormat{ nullptr };
 ID2D1Bitmap* bmpIntro[24]{ nullptr };
 ID2D1Bitmap* bmpField[75]{ nullptr };
 
+ID2D1Bitmap* bmpBubbles[40]{ nullptr };
+ID2D1Bitmap* bmpGrass[6]{ nullptr };
+
 ID2D1Bitmap* bmpBob[2]{ nullptr };
 ID2D1Bitmap* bmpJelly[4]{ nullptr };
 
@@ -141,6 +144,9 @@ ID2D1Bitmap* bmpEvil8R[16]{ nullptr };
 dll::RANDIt Randerer{};
 
 dll::GameObject Field{ nullptr };
+std::vector<dll::GameObject> vSeaGrass;
+std::vector<dll::GameObject> vBubbles;
+
 dll::GameCreature Bob{ nullptr };
 std::vector<dll::GameCreature>vJellies;
 std::vector<dll::GameCreature>vEvils;
@@ -185,6 +191,10 @@ void ReleaseResources()
 
     for (int i = 0; i < 24; ++i)if (!ClearHeap(&bmpIntro[i]))LogErr(L" Error releasing bmpIntro !");
     for (int i = 0; i < 75; ++i)if (!ClearHeap(&bmpField[i]))LogErr(L" Error releasing bmpField !");
+    for (int i = 0; i < 40; ++i)if (!ClearHeap(&bmpBubbles[i]))LogErr(L" Error releasing bmpBubbles !");
+    for (int i = 0; i < 6; ++i)if (!ClearHeap(&bmpGrass[i]))LogErr(L" Error releasing bmpGrass !");
+
+    
     for (int i = 0; i < 2; ++i)if (!ClearHeap(&bmpBob[i]))LogErr(L" Error releasing bmpBob !");
     for (int i = 0; i < 4; ++i)if (!ClearHeap(&bmpJelly[i]))LogErr(L" Error releasing bmpJelly !");
 
@@ -248,6 +258,20 @@ void InitGame()
     if (Field)Field->ObjRelease();
     Field = dll::CreateObject(types::field, 0, 50.0f);
 
+    if (!vBubbles.empty())for (int i = 0; i < vBubbles.size(); ++i) vBubbles[i]->ObjRelease();
+    vBubbles.clear();
+
+    if (!vSeaGrass.empty())for (int i = 0; i < vSeaGrass.size(); ++i) vSeaGrass[i]->ObjRelease();
+    vSeaGrass.clear();
+
+    vSeaGrass.push_back(dll::CreateObject(types::grass, (float)(Randerer(10, 80)), ground - 157.0f));
+    if (!vSeaGrass.empty())
+    {
+        for (int i = 0; i < 4; ++i)
+            vSeaGrass.push_back(dll::CreateObject(types::grass, vSeaGrass.back()->end.x + (float)(Randerer(100, 150)),
+                ground - 157.0f));
+    }
+
     if (Bob)Bob->Release();
     Bob = dll::CreateCreature(types::hero, (float)(Randerer(10, (int)(scr_width - 80.0f))), ground - 80.0f, 0, 0);
 
@@ -257,8 +281,7 @@ void InitGame()
     if (!vEvils.empty())for (int i = 0; i < vEvils.size(); ++i) vEvils[i]->Release();
     vEvils.clear();
 
-    ///////////////////////////////////
-
+    
 }
 
 INT_PTR CALLBACK DlgProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lParam)
@@ -667,6 +690,38 @@ void CreateResources()
                 if (!bmpField[i])
                 {
                     LogErr(L"Error loading bmpField !");
+                    ErrExit(eD2D);
+                }
+            }
+            for (int i = 0; i < 40; ++i)
+            {
+                wchar_t name[160] = L".\\res\\img\\bubbles\\";
+                wchar_t add[8] = L"\0";
+
+                wsprintf(add, L"%d", i);
+                wcscat_s(name, add);
+                wcscat_s(name, L".png");
+
+                bmpBubbles[i] = Load(name, Draw);
+                if (!bmpBubbles[i])
+                {
+                    LogErr(L"Error loading bmpBubbles !");
+                    ErrExit(eD2D);
+                }
+            }
+            for (int i = 0; i < 6; ++i)
+            {
+                wchar_t name[160] = L".\\res\\img\\grass\\";
+                wchar_t add[8] = L"\0";
+
+                wsprintf(add, L"%d", i);
+                wcscat_s(name, add);
+                wcscat_s(name, L".png");
+
+                bmpGrass[i] = Load(name, Draw);
+                if (!bmpGrass[i])
+                {
+                    LogErr(L"Error loading bmpGrass !");
                     ErrExit(eD2D);
                 }
             }
@@ -1147,6 +1202,28 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                 (*ev)->EvilAI(Mesh, (float)(level));
         }
 
+        if (vBubbles.size() < 5 && Randerer(0, 300) == 66)
+        {
+            vBubbles.push_back(dll::CreateObject(types::bubbles, (float)(Randerer(20, 900)), ground - 80.0f));
+            if (sound)mciSendString(L"play .\\res\\snd\\bubbles.wav", NULL, NULL, NULL);
+        }
+        if (!vBubbles.empty())
+        {
+            for (std::vector<dll::GameObject>::iterator bub = vBubbles.begin(); bub < vBubbles.end(); ++bub)
+            {
+                (*bub)->start.y--;
+                (*bub)->SetEdges();
+                if ((*bub)->start.y <= sky)
+                {
+                    (*bub)->ObjRelease();
+                    vBubbles.erase(bub);
+                    break;
+                }
+            }
+        }
+
+
+
         // DRAW THINGS ******************************
 
         Draw->BeginDraw();
@@ -1243,7 +1320,18 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                 }
             }
         }
-
+        if (!vSeaGrass.empty())
+        {
+            for (int i = 0; i < vSeaGrass.size(); ++i)
+                Draw->DrawBitmap(bmpGrass[vSeaGrass[i]->GetFrame()], D2D1::RectF(vSeaGrass[i]->start.x, vSeaGrass[i]->start.y,
+                    vSeaGrass[i]->end.x, vSeaGrass[i]->end.y));
+        }
+        if (!vBubbles.empty())
+        {
+            for (int i = 0; i < vBubbles.size(); ++i)
+                Draw->DrawBitmap(bmpBubbles[vBubbles[i]->GetFrame()], D2D1::RectF(vBubbles[i]->start.x, vBubbles[i]->start.y,
+                    vBubbles[i]->end.x, vBubbles[i]->end.y));
+        }
 
 
         Draw->EndDraw();

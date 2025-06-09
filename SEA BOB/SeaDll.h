@@ -16,7 +16,8 @@ constexpr float ground{ 750.0f };
 
 enum class types {
 	evil1 = 0, evil2 = 1, evil3 = 2, evil4 = 3, evil5 = 4,
-	evil6 = 5, evil7 = 6, evil8 = 7, hero = 8, jelly = 9, field = 10, no_type = 11
+	evil6 = 5, evil7 = 6, evil8 = 7, hero = 8, jelly = 9, field = 10,
+	bubbles = 11, grass = 12, no_type = 13
 };
 
 enum class dirs { stop = 0, left = 1, right = 2, up = 3, down = 4 };
