@@ -290,16 +290,50 @@ void LevelUp()
 {
     PlaySound(NULL, NULL, NULL);
 
+    int frame = 0;
+
     if (!level_skipped)
     {
         int bonus = secs / 5 + jellies_saved - jellies_lost;
 
         if (bonus > 0)
         {
+            wchar_t bonus_txt[20] = L"БОНУС: ";
+            wchar_t add[5] = L"\0";
+            int txt_size = 0;
 
+            while (bonus > 0)
+            {
+                bonus--;
+                score += level;
+
+                wsprintf(add, L"%d", score);
+                wcscat_s(bonus_txt, add);
+
+                for (int i = 0; i < 20; ++i)
+                {
+                    if (bonus_txt[i] != '\0')txt_size++;
+                    else break;
+                }
+
+                Draw->BeginDraw();
+                Draw->DrawBitmap(bmpIntro[frame], D2D1::RectF(0, 0, scr_width, scr_height));
+                ++frame;
+                if (frame > 23)frame = 0;
+                Draw->DrawTextW(bonus_txt, txt_size, bigFormat, D2D1::RectF(300.0f, 200.0f, scr_width, scr_height), hgltBrush);
+                Draw->EndDraw();
+                if (sound)mciSendString(L"play .\\res\\click.wav", NULL, NULL, NULL);
+                Sleep(30);
+            }
         }
-        
     }
+
+    Draw->BeginDraw();
+    Draw->DrawBitmap(bmpIntro[frame], D2D1::RectF(0, 0, scr_width, scr_height));
+    ++frame;
+    if (frame > 23)frame = 0;
+    Draw->DrawTextW(L"ПРЕМИНА НИВОТО !", 17, bigFormat, D2D1::RectF(50.0f, 200.0f, scr_width, scr_height), hgltBrush);
+    Draw->EndDraw();
 
     if (sound)
     {
@@ -307,8 +341,6 @@ void LevelUp()
         PlaySound(sound_file, NULL, SND_ASYNC | SND_LOOP);
     }
     else Sleep(3000);
-
-
 
     level_skipped = false;
     ++level;
@@ -346,7 +378,6 @@ void LevelUp()
     if (!vEvils.empty())for (int i = 0; i < vEvils.size(); ++i) vEvils[i]->Release();
     vEvils.clear();
 }
-
 
 INT_PTR CALLBACK DlgProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lParam)
 {
