@@ -92,12 +92,15 @@ namespace dll
 			}
 			else
 			{
-				m_ptr = reinterpret_cast<T*>(realloc(m_ptr, (max_size + 1) * sizeof(T)));
-				m_ptr[next_pos] = element;
+				if (m_ptr)
+				{
+					m_ptr = reinterpret_cast<T*>(realloc(m_ptr, (max_size + 1) * sizeof(T)));
+					m_ptr[next_pos] = element;
 
-				++max_size;
-				++next_pos;
-				return;
+					++max_size;
+					++next_pos;
+					return;
+				}
 			}
 		}
 		void push_front(T element)

@@ -78,6 +78,8 @@ bool b1Hglt = false;
 bool b2Hglt = false;
 bool b3Hglt = false;
 
+bool level_skipped = false;
+
 int level = 1;
 int score = 0;
 
@@ -86,6 +88,7 @@ int secs = 180;
 
 int jellies_saved = 0;
 int jellies_lost = 0;
+int need_to_save = 0;
 
 //////////////////////////////////////////////////
 
@@ -246,11 +249,13 @@ void InitGame()
     name_set = false;
     score = 0;
     level = 1;
+    level_skipped = false;
 
     ////////////////////////////////////
 
     jellies_saved = 0;
-    int jellies_lost = 0;
+    jellies_lost = 0;
+    need_to_save = 10 + level;
 
     mins = 0;
     secs = 180 - level * 5;
@@ -280,9 +285,68 @@ void InitGame()
 
     if (!vEvils.empty())for (int i = 0; i < vEvils.size(); ++i) vEvils[i]->Release();
     vEvils.clear();
-
-    
 }
+void LevelUp()
+{
+    PlaySound(NULL, NULL, NULL);
+
+    if (!level_skipped)
+    {
+        int bonus = secs / 5 + jellies_saved - jellies_lost;
+
+        if (bonus > 0)
+        {
+
+        }
+        
+    }
+
+    if (sound)
+    {
+        PlaySound(L".\\res\\snd\\levelup", NULL, SND_SYNC);
+        PlaySound(sound_file, NULL, SND_ASYNC | SND_LOOP);
+    }
+    else Sleep(3000);
+
+
+
+    level_skipped = false;
+    ++level;
+
+    jellies_saved = 0;
+    jellies_lost = 0;
+    need_to_save = 10 + level;
+
+    mins = 0;
+    secs = 180 - level * 5;
+
+    if (Field)Field->ObjRelease();
+    Field = dll::CreateObject(types::field, 0, 50.0f);
+
+    if (!vBubbles.empty())for (int i = 0; i < vBubbles.size(); ++i) vBubbles[i]->ObjRelease();
+    vBubbles.clear();
+
+    if (!vSeaGrass.empty())for (int i = 0; i < vSeaGrass.size(); ++i) vSeaGrass[i]->ObjRelease();
+    vSeaGrass.clear();
+
+    vSeaGrass.push_back(dll::CreateObject(types::grass, (float)(Randerer(10, 80)), ground - 157.0f));
+    if (!vSeaGrass.empty())
+    {
+        for (int i = 0; i < 4; ++i)
+            vSeaGrass.push_back(dll::CreateObject(types::grass, vSeaGrass.back()->end.x + (float)(Randerer(100, 150)),
+                ground - 157.0f));
+    }
+
+    if (Bob)Bob->Release();
+    Bob = dll::CreateCreature(types::hero, (float)(Randerer(10, (int)(scr_width - 80.0f))), ground - 80.0f, 0, 0);
+
+    if (!vJellies.empty())for (int i = 0; i < vJellies.size(); ++i) vJellies[i]->Release();
+    vJellies.clear();
+
+    if (!vEvils.empty())for (int i = 0; i < vEvils.size(); ++i) vEvils[i]->Release();
+    vEvils.clear();
+}
+
 
 INT_PTR CALLBACK DlgProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -446,6 +510,13 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPar
         }
         break;
 
+    case WM_TIMER:
+        if (pause)break;
+        --secs;
+        mins = secs / 60;
+        if (secs <= 0)LevelUp();
+        break;
+
     case WM_COMMAND:
         switch (LOWORD(wParam))
         {
@@ -470,7 +541,8 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPar
                 pause = false;
                 break;
             }
-            //LevelUp();
+            level_skipped = true;
+            LevelUp();
             break;
 
         case mExit:
@@ -1084,8 +1156,6 @@ void CreateResources()
 
 /////////////////////////////////////////////////////////////
 
-
-
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
     bIns = hInstance;
@@ -1096,8 +1166,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
     }
 
     CreateResources();
-
-
 
     while (bMsg.message != WM_QUIT)
     {
@@ -1172,7 +1240,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
         /////////////////////////////////////////////
 
-        if (vEvils.size() <= level + 5 && Randerer(0, 300) == 66)
+        if (vEvils.size() <= level + 3 && Randerer(0, 300) == 66)
         {
             float sx = (float)(Randerer(20, (int)(scr_width)));
             float sy = (float)(Randerer((int)(sky), (int)(ground-100.0f)));
@@ -1222,7 +1290,71 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
             }
         }
 
+        //////////////////////////////////////////////
 
+        if (Bob && !vJellies.empty())
+        {
+            for (std::vector<dll::GameCreature>::iterator jel = vJellies.begin(); jel < vJellies.end(); ++jel)
+            {
+                if ((abs(Bob->center.x - (*jel)->center.x) <= Bob->XRadius() + (*jel)->XRadius())
+                    && (abs(Bob->center.y - (*jel)->center.y) <= Bob->YRadius() + (*jel)->YRadius()))
+                {
+                    if (sound)mciSendString(L"play .\\res\\snd\\savedjelly.wav", NULL, NULL, NULL);
+                    jellies_saved++;
+                    score += 4 + level;
+
+                    (*jel)->Release();
+                    vJellies.erase(jel);
+                    break;
+                }
+            }
+        }
+        if (!vEvils.empty() && !vJellies.empty())
+        {
+            for (std::vector<dll::GameCreature>::iterator evil = vEvils.begin(); evil < vEvils.end(); ++evil)
+            {
+                bool ate = false;
+
+                for (std::vector<dll::GameCreature>::iterator jel = vJellies.begin(); jel < vJellies.end(); ++jel)
+                {
+                    if ((abs((*evil)->center.x - (*jel)->center.x) <= (*evil)->XRadius() + (*jel)->XRadius())
+                        && (abs((*evil)->center.y - (*jel)->center.y) <= (*evil)->YRadius() + (*jel)->YRadius()))
+                    {
+                        if (sound)mciSendString(L"play .\\res\\snd\\eaten.wav", NULL, NULL, NULL);
+                        jellies_lost++;
+                        ate = true;
+                        (*jel)->Release();
+                        vJellies.erase(jel);
+                        break;
+                    }
+                }
+
+                if (ate) break;
+            }
+
+        }
+        if (Bob && !vEvils.empty())
+        {
+            for (std::vector<dll::GameCreature>::iterator evil = vEvils.begin(); evil < vEvils.end(); ++evil)
+            {
+                if ((abs(Bob->center.x - (*evil)->center.x) <= Bob->XRadius() + (*evil)->XRadius())
+                    && (abs(Bob->center.y - (*evil)->center.y) <= Bob->YRadius() + (*evil)->YRadius()))
+                {
+                    if (sound)mciSendString(L"play .\\res\\snd\\defeat.wav", NULL, NULL, NULL);
+                    Bob->Release();
+                    Bob = nullptr;
+                    break;
+                }
+            }
+            if (!Bob)
+            {
+                Sleep(300);
+                GameOver();
+            }
+        }
+
+        if (jellies_saved >= need_to_save)LevelUp();
+        if (jellies_lost >= 15 + level)GameOver();
 
         // DRAW THINGS ******************************
 
@@ -1332,7 +1464,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                 Draw->DrawBitmap(bmpBubbles[vBubbles[i]->GetFrame()], D2D1::RectF(vBubbles[i]->start.x, vBubbles[i]->start.y,
                     vBubbles[i]->end.x, vBubbles[i]->end.y));
         }
-
 
         Draw->EndDraw();
 
