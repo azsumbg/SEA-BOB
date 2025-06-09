@@ -395,8 +395,9 @@ void LevelUp()
                 Draw->DrawTextW(bonus_txt, txt_size, bigFormat, D2D1::RectF(300.0f, 200.0f, scr_width, scr_height), hgltBrush);
                 Draw->EndDraw();
                 if (sound)mciSendString(L"play .\\res\\snd\\click.wav", NULL, NULL, NULL);
-                Sleep(40);
+                Sleep(20);
             }
+            if (sound)mciSendString(L"play .\\res\\snd\\win.wav", NULL, NULL, NULL);
             Sleep(3000);
         }
     }
@@ -433,7 +434,6 @@ void LevelUp()
 
     if (!vSeaGrass.empty())for (int i = 0; i < vSeaGrass.size(); ++i) vSeaGrass[i]->ObjRelease();
     vSeaGrass.clear();
-
     vSeaGrass.push_back(dll::CreateObject(types::grass, (float)(Randerer(10, 80)), ground - 157.0f));
     if (!vSeaGrass.empty())
     {
@@ -662,6 +662,12 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPar
         {
             if (LOWORD(lParam) >= b1Rect.left && LOWORD(lParam) <= b1Rect.right)
             {
+                if (name_set)
+                {
+                    if (sound)mciSendString(L"play .\\res\\snd\\negative.wav", NULL, NULL, NULL);
+                    break;
+
+                }
                 if (sound)mciSendString(L"play .\\res\\snd\\select.wav", NULL, NULL, NULL);
                 if (DialogBox(bIns, MAKEINTRESOURCE(IDD_PLAYER), hwnd, &DlgProc) == IDOK)name_set = true;
                 break;
@@ -1302,7 +1308,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
         /////////////////////////////////////////////
 
-        if (vJellies.size() <= level + 3 && Randerer(0, 150) == 66)
+        if (vJellies.size() <= level + 3 && Randerer(0, 100) == 66)
         {
             float sx = (float)(Randerer(20, (int)(scr_width)));
             float sy = 0;
@@ -1575,6 +1581,63 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                 Draw->DrawBitmap(bmpBubbles[vBubbles[i]->GetFrame()], D2D1::RectF(vBubbles[i]->start.x, vBubbles[i]->start.y,
                     vBubbles[i]->end.x, vBubbles[i]->end.y));
         }
+
+        // STATUS **********************************
+
+        wchar_t stat_txt[150]{ L"\0"};
+        wchar_t add[8]{ L"\0" };
+        int txt_size = 0;
+
+        wcscpy_s(stat_txt, current_player);
+        for (int i = 0; i < 16; ++i)
+        {
+            if (stat_txt[i] != '\0')txt_size++;
+            else break;
+        }
+        Draw->DrawTextW(stat_txt, txt_size, midFormat, D2D1::RectF(10.0f, 55.0f, scr_width, 100.0f), hgltBrush);
+        txt_size = 0;
+
+        wsprintf(add, L"%d", mins);
+        if (mins < 10)
+        {
+            wcscpy_s(stat_txt, L"0");
+            wcscat_s(stat_txt, add);
+        }
+        else wcscpy_s(stat_txt, add);
+
+        wcscat_s(stat_txt, L" : ");
+        wsprintf(add, L"%d", secs - mins * 60);
+        if (secs - mins * 60 < 10)wcscat_s(stat_txt, L"0");
+        wcscat_s(stat_txt, add);
+        for (int i = 0; i < 150; ++i)
+        {
+            if (stat_txt[i] != '\0')txt_size++;
+            else break;
+        }
+        Draw->DrawTextW(stat_txt, txt_size, midFormat, D2D1::RectF(900.0f, 55.0f, scr_width, 100.0f), hgltBrush);
+        txt_size = 0;
+
+        wcscpy_s(stat_txt, L"за спасяване: ");
+        wsprintf(add, L"%d", need_to_save - jellies_saved);
+        wcscat_s(stat_txt, add);
+        wcscat_s(stat_txt, L", загубени: ");
+        wsprintf(add, L"%d", jellies_lost);
+        wcscat_s(stat_txt, add);
+        wcscat_s(stat_txt, L", ниво: ");
+        wsprintf(add, L"%d", level);
+        wcscat_s(stat_txt, add);
+        wcscat_s(stat_txt, L", точки: ");
+        wsprintf(add, L"%d", score);
+        wcscat_s(stat_txt, add);
+
+        for (int i = 0; i < 150; ++i)
+        {
+            if (stat_txt[i] != '\0')txt_size++;
+            else break;
+        }
+        Draw->DrawTextW(stat_txt, txt_size, midFormat, D2D1::RectF(10.0f, ground + 5.0f, scr_width, scr_height), hgltBrush);
+
+        /////////////////////////////////////////////
 
         Draw->EndDraw();
 
