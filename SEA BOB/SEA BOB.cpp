@@ -451,6 +451,56 @@ void LevelUp()
     if (!vEvils.empty())for (int i = 0; i < vEvils.size(); ++i) vEvils[i]->Release();
     vEvils.clear();
 }
+void ShowRecord()
+{
+    int result = 0;
+    CheckFile(record_file, &result);
+    if (result == FILE_NOT_EXIST)
+    {
+        if (sound)mciSendString(L"play .\\res\\snd\\negative.wav", NULL, NULL, NULL);
+        MessageBox(bHwnd, L"Все още няма рекорд на играта !\n\nПостарай се повече !", L"Липсва файл !", MB_OK |
+            MB_APPLMODAL | MB_ICONINFORMATION);
+        return;
+    }
+
+    wchar_t rec_txt[100]{ L"НАЙ-ВЕЛИК ИГРАЧ: " };
+    wchar_t add[5]{ L"\0" };
+    wchar_t saved_player[16]{ L"\0" };
+
+    std::wifstream rec(record_file);
+    rec >> result;
+    wsprintf(add, L"%d", result);
+    for (int i = 0; i < 16; ++i)
+    {
+        int letter = 0;
+        rec >> letter;
+        saved_player[i] = static_cast<wchar_t>(letter);
+    }
+    rec.close();
+
+    wcscat_s(rec_txt, saved_player);
+    wcscat_s(rec_txt, L"\n\nСВЕТОВЕН РЕКОРД: ");
+    wcscat_s(rec_txt, add);
+
+    result = 0;
+
+    for (int i = 0; i < 100; ++i)
+    {
+        if (rec_txt[i] != '\0')++result;
+        else break;
+    }
+
+    if (sound)mciSendString(L"play .\\res\\snd\\showrec.wav", NULL, NULL, NULL);
+
+    Draw->BeginDraw();
+    Draw->DrawBitmap(bmpIntro[0], D2D1::RectF(0, 0, scr_width, scr_height));
+    Draw->DrawTextW(rec_txt, result, bigFormat, D2D1::RectF(50.0f, 100.0f, scr_width, scr_height), hgltBrush);
+    Draw->EndDraw();
+    Sleep(3500);
+}
+
+
+
 
 INT_PTR CALLBACK DlgProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -653,7 +703,11 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPar
             SendMessage(hwnd, WM_CLOSE, NULL, NULL);
             break;
 
-
+        case mHoF:
+            pause = true;
+            ShowRecord();
+            pause = false;
+            break;
         }
         break;
 
