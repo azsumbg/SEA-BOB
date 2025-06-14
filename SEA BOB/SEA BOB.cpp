@@ -498,8 +498,152 @@ void ShowRecord()
     Draw->EndDraw();
     Sleep(3500);
 }
+void SaveGame()
+{
+    int result = 0;
+    CheckFile(save_file, &result);
+    if (result == FILE_EXIST)
+    {
+        if (sound)mciSendString(L"play .\\res\\snd\\exclamation.wav", NULL, NULL, NULL);
+        if (MessageBox(bHwnd, L"Съществува записана игра, която ще бъде загубена !\n\nПрезаписваш ли я ?", L"Презапис",
+            MB_YESNO | MB_APPLMODAL | MB_ICONQUESTION) == IDNO)return;
+    }
+
+    std::wofstream save(save_file);
+
+    save << score << std::endl;
+    save << level << std::endl;
+    save << secs << std::endl;
+    save << level_skipped << std::endl;
+    save << defeat << std::endl;
+    save << jellies_saved << std::endl;
+    save << jellies_lost << std::endl;
+    save << need_to_save << std::endl;
+    for (int i = 0; i < 16; ++i)save << static_cast<int>(current_player[i]) << std::endl;
+    save << name_set << std::endl;
+
+    save << Bob->start.x << std::endl;
+    save << Bob->start.y << std::endl;
+
+    save << vEvils.size() << std::endl;
+    if (!vEvils.empty())
+    {
+        for (int i = 0; i < vEvils.size(); ++i)
+        {
+            save << static_cast<int>(vEvils[i]->GetType()) << std::endl;
+            save << vEvils[i]->start.x << std::endl;
+            save << vEvils[i]->start.y << std::endl;
+        }
+    }
+
+    save.close();
+
+    if (sound)mciSendString(L"play .\\res\\snd\\save.wav", NULL, NULL, NULL);
+
+    MessageBox(bHwnd, L"Играта е запазена !", L"Запис !", MB_OK | MB_APPLMODAL | MB_ICONINFORMATION);
+}
+void LoadGame()
+{
+    int result = 0;
+    CheckFile(save_file, &result);
+
+    if (result == FILE_NOT_EXIST)
+    {
+        if (sound)mciSendString(L"play .\\res\\snd\\negative.wav", NULL, NULL, NULL);
+        MessageBox(bHwnd, L"Все още няма записана игра !\n\nПостарай се повече !", L"Липсва файл !", MB_OK |
+            MB_APPLMODAL | MB_ICONINFORMATION);
+        return;
+    }
+    else
+    {
+        if (sound)mciSendString(L"play .\\res\\snd\\exclamation.wav", NULL, NULL, NULL);
+        if (MessageBox(bHwnd, L"Ще загубиш прогреса по тази игра !\n\nПрезаписваш ли я ?", L"Презапис",
+            MB_YESNO | MB_APPLMODAL | MB_ICONQUESTION) == IDNO)return;
+    }
+
+    if (Field)Field->ObjRelease();
+    Field = dll::CreateObject(types::field, 0, 50.0f);
+
+    if (!vBubbles.empty())for (int i = 0; i < vBubbles.size(); ++i) vBubbles[i]->ObjRelease();
+    vBubbles.clear();
+
+    if (!vSeaGrass.empty())for (int i = 0; i < vSeaGrass.size(); ++i) vSeaGrass[i]->ObjRelease();
+    vSeaGrass.clear();
+    vSeaGrass.push_back(dll::CreateObject(types::grass, (float)(Randerer(10, 80)), ground - 157.0f));
+    if (!vSeaGrass.empty())
+    {
+        for (int i = 0; i < 4; ++i)
+            vSeaGrass.push_back(dll::CreateObject(types::grass, vSeaGrass.back()->end.x + (float)(Randerer(100, 150)),
+                ground - 157.0f));
+    }
+
+    if (Bob)Bob->Release();
+   
+    if (!vJellies.empty())for (int i = 0; i < vJellies.size(); ++i) vJellies[i]->Release();
+    vJellies.clear();
+
+    if (!vEvils.empty())for (int i = 0; i < vEvils.size(); ++i) vEvils[i]->Release();
+    vEvils.clear();
+
+    /////////////////////////////////////////////////////////
+
+    std::wifstream save(save_file);
+
+    save >> score;
+    save >> level;
+    save >> secs;
+    save >> level_skipped;
+    save >> defeat;
+    save >> jellies_saved;
+    save >> jellies_lost;
+    save >> need_to_save;
+    for (int i = 0; i < 16; ++i)
+    {
+        int letter = 0;
+        save >> letter;
+        current_player[i] = static_cast<wchar_t>(letter);
+    }
+    save >> name_set;
+
+    float btx{ 0 };
+    float bty{ 0 };
+    save >> btx;
+    save >> bty;
+    Bob = dll::CreateCreature(types::hero, btx, bty, 0, 0);
+
+    save >> result;
+    if (result > 0)
+    {
+        for (int i = 0; i < result; ++i)
+        {
+            int ttype = 0;
+            float tx = 0;
+            float ty = 0;
+            float tex = 0;
+            float tey = 0;
+            
+            save >> ttype;
+            save >> tx;
+            save >> ty;
 
 
+            if (tx == 0)tex = scr_width - (float)(Randerer(0, 700));
+            else tex = (float)(Randerer(0, 700));
+
+            if (ty < scr_height / 2)tey = ground - 100.0f;
+            else if (ty > scr_height / 2)tey = sky;
+            else tey = ty;
+
+            vEvils.push_back(dll::CreateCreature(static_cast<types>(ttype), tx, ty, tex, tey));
+        }
+    }
+
+    save.close();
+
+    if (sound)mciSendString(L"play .\\res\\snd\\save.wav", NULL, NULL, NULL);
+
+    MessageBox(bHwnd, L"Играта е заредена !", L"Запис !", MB_OK | MB_APPLMODAL | MB_ICONINFORMATION);
+}
 
 
 INT_PTR CALLBACK DlgProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lParam)
@@ -701,6 +845,18 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPar
 
         case mExit:
             SendMessage(hwnd, WM_CLOSE, NULL, NULL);
+            break;
+
+        case mSave:
+            pause = true;
+            SaveGame();
+            pause = false;
+            break;
+
+        case mLoad:
+            pause = true;
+            LoadGame();
+            pause = false;
             break;
 
         case mHoF:
